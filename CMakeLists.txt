@@ -15,6 +15,7 @@ add_service_files(
   Knowledge.srv
   ImageRecognition.srv
   SentenseUnderstanding.srv
+  TextToSpeechService.srv
 )
 
 generate_messages(

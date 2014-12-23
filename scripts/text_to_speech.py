@@ -3,7 +3,9 @@
 
 import rospy
 from docomo_perception.msg import TextToSpeech
-from sound_play.msg import SoundRequest
+from docomo_perception.srv import TextToSpeechService, TextToSpeechServiceResponse
+from sound_play.msg import *
+import actionlib
 
 import json
 import requests
@@ -18,6 +20,9 @@ class DocomoTextToSpeechNode(object):
     def __init__(self):
         self.sub = rospy.Subscriber("text_to_speech", TextToSpeech, self.callback)
         self.pub = rospy.Publisher("robotsound", SoundRequest)
+        self.srv = rospy.Service("text_to_speech", TextToSpeechService, self.serviceCallback)
+        self.ac = actionlib.SimpleActionClient("sound_play", SoundRequestAction)
+        self.ac.wait_for_server()
         self.lock = threading.Lock()
 
     def _speakerID(self, m):
@@ -44,7 +49,7 @@ class DocomoTextToSpeechNode(object):
         elif m > 2: m = 2
         return str(m)
 
-    def callback(self, msg):
+    def gen_voice(self, msg):
         dic = {
             "Command": "AP_Synth",
             "TextData": msg.text,
@@ -70,7 +75,10 @@ class DocomoTextToSpeechNode(object):
         with open(voice_path, 'w') as f:
             f.write(urlres.content)
         rospy.loginfo("received voice data: %s" % voice_path)
+        return voice_path
 
+    def callback(self, msg):
+        voice_path = self.gen_voice(msg)
         # command play sound
         pub_msg = SoundRequest()
         pub_msg.sound = SoundRequest.PLAY_FILE
@@ -78,6 +86,20 @@ class DocomoTextToSpeechNode(object):
         pub_msg.arg = voice_path
         self.pub.publish(pub_msg)
 
+    def serviceCallback(self, req):
+        voice_path = self.gen_voice(req.speech)
+
+        pub_msg = SoundRequest()
+        pub_msg.sound = SoundRequest.PLAY_FILE
+        pub_msg.command = SoundRequest.PLAY_ONCE
+        pub_msg.arg = voice_path
+
+        goal = SoundRequestGoal()
+        goal.sound_request = pub_msg
+        self.ac.send_goal(goal)
+        self.ac.wait_for_result()
+        res = TextToSpeechServiceResponse()
+        return res
 
 def load_tts_settings():
     global APIHOST, APIKEY
