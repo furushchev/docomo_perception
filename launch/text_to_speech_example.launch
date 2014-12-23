@@ -1,7 +1,7 @@
 <launch>
   <arg name="use_android" default="true" />
-  <node name="docomo_text2voice"
-        pkg="docomo_perception" type="text2voice.py"
+  <node name="docomo_text_to_speech"
+        pkg="docomo_perception" type="text_to_speech.py"
         output="screen" >
     <remap from="/Tablet/voice" to="voice"
            if="$(arg use_android)"/>
